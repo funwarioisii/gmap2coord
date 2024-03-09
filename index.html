@@ -6,7 +6,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@ruby/3.3-wasm-wasi@2.5.0/dist/browser.script.iife.js"></script>
     <!--language=ruby-->
-    <script type="text/ruby">
+    <script type="text/ruby" data-eval="async">
         puts RUBY_VERSION
 
         require "js"
@@ -19,20 +19,54 @@
             url.match(/@(?<lat>[\d.]+),(?<lng>[\d.]+),/)&.named_captures
         end
 
+        # https://maps.app.goo.gl/hHzaUXa9LBraAb1DA のような短縮URLかどうか
+        def short_maps_url?(url)
+            url.match?(/maps\.app\.goo\.gl\//)
+        end
+
+        def expand_url(url)
+            expander_api_url = 'https://misc-api.funwarioisii.workers.dev/expand_url'
+            JS.global.fetch(expander_api_url + "?url=#{url}").await.json.await['url'].to_s
+        end
+
         button = document.getElementById('extractButton')
-        button.addEventListener 'click' do |_e|
-            _e.preventDefault()
+        button.addEventListener 'click' do |e|
+            e.preventDefault()
             url = document.getElementById('url')[:value].to_s
-            latlng = extract_latlng(url)
-            document.getElementById('result')[:innerHTML] = <<~HTML
-              <p>緯度: #{latlng["lat"]}</p>
-              <p>経度: #{latlng["lng"]}</p>
-            HTML
+
+            if short_maps_url?(url)
+                Fiber.new do
+                    url = expand_url(url)
+                    latlng = extract_latlng(url)
+                    document.getElementById('result')[:innerHTML] = <<~HTML
+                      <p>緯度: #{latlng["lat"]}</p>
+                      <p>経度: #{latlng["lng"]}</p>
+                      HTML
+                end.transfer
+            else
+                latlng = extract_latlng(url)
+                document.getElementById('result')[:innerHTML] = <<~HTML
+                  <p>
+                    緯度: #{latlng["lat"]}<br />
+                    経度: #{latlng["lng"]}<br />
+                    #{latlng["lat"]},#{latlng["lng"]}
+                  </p>
+                HTML
+            end
         end
     </script>
 </head>
 <body>
 <h1>Google Maps のURLから緯度・経度を抽出</h1>
+<p>
+    短縮URLは未対応です…。<br/>
+    次のようなURL(@lat,lngが含まれている)に対応しています。<br/>
+    <a
+            style="word-break: break-all; display: block; font-size: 0.75rem; margin-top: 1em; margin-bottom: 1em; text-decoration: underline; color: blue;"
+    >
+        https://www.google.com/maps/place/%E5%AE%87%E9%83%A8%E6%96%B0%E5%B7%9D%E9%A7%85/@33.9562794,131.2351952,15.93z/data=!4m6!3m5!1s0x354380d7bd1e152b:0xe040adfb36b97d15!8m2!3d33.9587644!4d131.2426001!16s%2Fm%2F04f1zzf?entry=ttu
+    </a>
+</p>
 <form>
     <label for="url">URL</label>
     <input type="url" id="url" name="url" required>
