@@ -1,0 +1,43 @@
+<html lang="ja">
+<head>
+    <title>Google Maps のURLから緯度・経度を抽出</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <script src="https://cdn.jsdelivr.net/npm/@ruby/3.3-wasm-wasi@2.5.0/dist/browser.script.iife.js"></script>
+    <!--language=ruby-->
+    <script type="text/ruby">
+        puts RUBY_VERSION
+
+        require "js"
+
+        def document
+            @document ||= JS.global[:document]
+        end
+
+        def extract_latlng(url)
+            url.match(/@(?<lat>[\d.]+),(?<lng>[\d.]+),/)&.named_captures
+        end
+
+        button = document.getElementById('extractButton')
+        button.addEventListener 'click' do |_e|
+            _e.preventDefault()
+            url = document.getElementById('url')[:value].to_s
+            latlng = extract_latlng(url)
+            document.getElementById('result')[:innerHTML] = <<~HTML
+              <p>緯度: #{latlng["lat"]}</p>
+              <p>経度: #{latlng["lng"]}</p>
+            HTML
+        end
+    </script>
+</head>
+<body>
+<h1>Google Maps のURLから緯度・経度を抽出</h1>
+<form>
+    <label for="url">URL</label>
+    <input type="url" id="url" name="url" required>
+    <button type="submit" id="extractButton">抽出</button>
+</form>
+<div id="result"></div>
+</body>
+</html>
